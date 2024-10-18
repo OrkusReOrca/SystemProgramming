@@ -34,11 +34,13 @@ int main() {
     if (pid) {
       while (turn) {
         sleep(1);
+        lseek(flagfd, 0, SEEK_SET);
         read(flagfd, &turn, 1);
       }
     } else {
       while (!turn) {
         sleep(1);
+        lseek(flagfd, 0, SEEK_SET);
         read(flagfd, &turn, 1);
       }
     }
@@ -48,9 +50,11 @@ int main() {
     msg = omsg;
     if (pid) {
       turn = 1;
+      lseek(flagfd, 0, SEEK_SET);
       write(flagfd, &turn, 1);
     } else {
       turn = 0;
+      lseek(flagfd, 0, SEEK_SET);
       write(flagfd, &turn, 1);
     }
   }
