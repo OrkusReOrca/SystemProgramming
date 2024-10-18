@@ -1,41 +1,58 @@
-
-#include <sys/types.h>
-#include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 int main() {
-    pid_t pid; char *msg, c; int n;
+  pid_t pid;
+  char *msg, *omsg, c;
+  int n, flagfd, turn = 0;
 
-    printf("fork program starting\n");
-    pid = fork();
-    switch(pid) {
-        case -1:
-            exit(1);
-        case 0:
-            msg = "C"; n = 35;
-            break;
-        default:
-            msg = "P";
-            n = 35;
-        break;
-    }
+  flagfd = open("flag", O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+  write(flagfd, &turn, 1);
+  printf("fork program starting\n");
+  pid = fork();
+  switch (pid) {
+  case -1:
+    exit(1);
+  case 0:
+    msg = "Child";
+    n = 35;
+    break;
+  default:
+    msg = "Parent";
+    n = 35;
+    break;
+  }
 
-    setbuf(stdout, NULL); // set unbuffered
-    for (; n>0; n--) {
-        while (c = *msg++) {
-            putc(c, stdout);
-            sleep(1);
-        }
-    }
+  setbuf(stdout, NULL); // set unbuffered
+  
+  omsg = msg;
+  for (; n > 0; n--) {
     if (pid) {
-        int stat_val; pid_t child_pid;
-        child_pid = wait(&stat_val);
-        printf("Child has nished: PID = %d\n", child_pid);
-        if (WIFEXITED(stat_val))
-            printf("Child exited with code %d\n", WEXITSTATUS(stat_val));
-        else
-            printf("Child terminated abnormally\n");
+      while (turn) {
+        sleep(1);
+        read(flagfd, &turn, 1);
+      }
+    } else {
+      while (!turn) {
+        sleep(1);
+        read(flagfd, &turn, 1);
+      }
     }
-    exit(0);
-}//sdasd
+    while (c = *msg++)
+      putc(c, stdout);
+
+    msg = omsg;
+    if (pid) {
+      turn = 1;
+      write(flagfd, &turn, 1);
+    } else {
+      turn = 0;
+      write(flagfd, &turn, 1);
+    }
+  }
+  return 0;
+}
