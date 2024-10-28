@@ -2,15 +2,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-int main(void)
+
+int main(void) //writer.c
 {
-FILE *write_fp; char buffer[BUFSIZ + 1];
-sprintf(buffer, "This is a message for writing to a process!\n");
-write_fp = popen("od –c", "w");
-if (write_fp != NULL)
+int n_bytes, pipefd[2], pid;
+char buffer[BUFSIZ + 1], data[] = "12345";
+memset(buffer, '\0', sizeof(buffer));
+if (pipe(pipefd) == 0)
 {
-fwrite(buffer, sizeof(char), strlen(buffer), write_fp);
-pclose(write_fp); exit(EXIT_SUCCESS);
-}
+pid = fork();
+switch (pid)
+{
+case -1: fprintf(stderr, "Fork failed!\n"); break;
+case 0: sprintf(buffer, "%d", pipefd[0]);
+execl("reader", "reader", buffer, (char *) 0);
 exit(EXIT_FAILURE);
+default: n_bytes = write(pipefd[1], data, strlen(data));
+printf("%d bytes have been written from %d!\n", n_bytes, getpid());
+}
+}
+wait(NULL);
+exit(EXIT_SUCCESS);
 }
