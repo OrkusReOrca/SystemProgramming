@@ -73,8 +73,7 @@ int main(int argc, char *argv[]) {
             write(write_fd, buffer, strlen(buffer) + 1);
 
             if (strncmp(buffer, "end chat", 8) == 0) {
-                write(write_fd, "The other side have set to end the chat", 40);
-                write(write_fd, "Type 'end chat' to end the chat", 31);
+                write(write_fd, "Other side have LEFT the chat", 30);
                 printf("You've left the chat\nChat will end when they also done so\n");
                 break;
             }
@@ -93,7 +92,7 @@ int main(int argc, char *argv[]) {
             memset(buffer, 0, BUFFER_SIZE);
             if (read(read_fd, buffer, BUFFER_SIZE) > 0) {
                 if (strncmp(buffer, "end chat", 8) == 0) {
-                    printf("\nThe other side shave left the chat\nType 'end chat' to leave and end the chat\n");
+                    printf("\nOther side have LEFT the chat\n");
                     break;
                 }
                 printf("\nReceived: %s\n", buffer);
