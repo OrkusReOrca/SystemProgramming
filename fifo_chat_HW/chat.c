@@ -1,4 +1,4 @@
-//Kunanon Thappawong 6581163
+// Kunanon Thappawong 6581163
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,10 +7,26 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #define FIFO1 "fo1to2"
 #define FIFO2 "fo2to1"
 #define BUFFER_SIZE 1024
+
+// Global variables to store child PIDs
+pid_t sender_pid, receiver_pid;
+
+void terminate_chat(int signum) {
+    // Kill both sender and receiver processes
+    if (sender_pid > 0) {
+        kill(sender_pid, SIGTERM);
+    }
+    if (receiver_pid > 0) {
+        kill(receiver_pid, SIGTERM);
+    }
+    printf("Chat terminated.\n");
+    exit(0);
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -46,17 +62,19 @@ int main(int argc, char *argv[]) {
     int connected = 0;
     char test_buf[1];
     while (!connected) {
-        // Try a non-blocking read from the read FIFO to detect connection
         if (read(read_fd, test_buf, 0) >= 0) {
             connected = 1;
             printf("connected\n");
         } else {
-            usleep(100000); // Sleep for 100ms to avoid high CPU usage
+            usleep(100000);
         }
     }
 
+    // Set up signal handler for SIGTERM to terminate both processes
+    signal(SIGTERM, terminate_chat);
+
     // Fork two child processes: one for sending and one for receiving
-    pid_t sender_pid = fork();
+    sender_pid = fork();
 
     if (sender_pid < 0) {
         perror("Fork failed");
@@ -66,22 +84,22 @@ int main(int argc, char *argv[]) {
         while (1) {
             printf("You: ");
             fgets(buffer, BUFFER_SIZE, stdin);
-
-            // Remove newline from input
             buffer[strcspn(buffer, "\n")] = 0;
 
             write(write_fd, buffer, strlen(buffer) + 1);
 
             if (strncmp(buffer, "end chat", 8) == 0) {
-                write(write_fd, "Other side have LEFT the chat", 30);
-                printf("You've left the chat\nChat will end when they also done so\n");
+                write(write_fd, "Other side has LEFT the chat", 30);
+                printf("You've left the chat\n");
+                // Send SIGTERM to terminate the receiver process
+                kill(getppid(), SIGTERM);
                 break;
             }
         }
         exit(0);
     }
 
-    pid_t receiver_pid = fork();
+    receiver_pid = fork();
 
     if (receiver_pid < 0) {
         perror("Fork failed");
@@ -92,14 +110,15 @@ int main(int argc, char *argv[]) {
             memset(buffer, 0, BUFFER_SIZE);
             if (read(read_fd, buffer, BUFFER_SIZE) > 0) {
                 if (strncmp(buffer, "end chat", 8) == 0) {
-                    printf("\nOther side have LEFT the chat\n");
+                    printf("\nOther side has LEFT the chat\n");
+                    kill(getppid(), SIGTERM);
                     break;
                 }
                 printf("\nReceived: %s\n", buffer);
-                printf("You: "); // Reprint "You: " after receiving a message
+                printf("You: ");
                 fflush(stdout);
             }
-            usleep(100000); // Small delay to avoid CPU overuse
+            usleep(100000);
         }
         exit(0);
     }
